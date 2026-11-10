@@ -1,0 +1,150 @@
+USE hospital_db;
+
+
+-- 1. Relatório para a farmácia: medicamentos prescritos por paciente e médico
+SELECT 
+    p.nome_paciente AS Paciente,
+    m.nome_medico AS Medico,
+    c.data_consulta AS Data_Consulta,
+    pr.medicamento AS Medicamento,
+    pr.quantidade AS Qtd
+FROM prescricoes pr
+JOIN consultas c ON pr.id_consultas = c.id_consultas
+JOIN paciente p ON c.id_paciente = p.id_paciente
+JOIN medicos m ON c.id_medico = m.id_medico;
+
+-- 2. Histórico de internações para auditoria
+SELECT 
+    p.nome_paciente AS Paciente,
+    q.numero_quarto AS Quarto,
+    q.andar AS Andar,
+    i.data_entrada AS Data_Entrada,
+    i.valor_diaria AS Valor_Diaria
+FROM internacoes i
+JOIN paciente p ON i.id_paciente = p.id_paciente
+JOIN quarto q ON i.id_quarto = q.id_quarto;
+
+-- 3. Lista da recepção: paciente, convênio, médico e especialidade
+SELECT 
+    p.nome_paciente AS Paciente,
+    p.convenio AS Convenio,
+    m.nome_medico AS Medico,
+    m.especialidade AS Especialidade
+FROM consultas c
+JOIN paciente p ON c.id_paciente = p.id_paciente
+JOIN medicos m ON c.id_medico = m.id_medico;
+
+-- 4. Prescrições emitidas indicando o médico responsável, especialidade e remédio
+SELECT 
+    m.nome_medico AS Medico_Responsavel,
+    m.especialidade AS Especialidade,
+    p.nome_paciente AS Paciente,
+    pr.medicamento AS Remedio
+FROM prescricoes pr
+JOIN consultas c ON pr.id_consultas = c.id_consultas
+JOIN medicos m ON c.id_medico = m.id_medico
+JOIN paciente p ON c.id_paciente = p.id_paciente;
+
+-- 5. Cruzamento sem duplicidades de pacientes que já internaram e fizeram consultas
+SELECT DISTINCT
+    p.nome_paciente AS Paciente,
+    q.numero_quarto AS Quarto_Internacao,
+    m.nome_medico AS Medico_Atendente,
+    c.data_consulta AS Data_Consulta
+FROM paciente p
+JOIN internacoes i ON p.id_paciente = i.id_paciente
+JOIN quarto q ON i.id_quarto = q.id_quarto
+JOIN consultas c ON p.id_paciente = c.id_paciente
+JOIN medicos m ON c.id_medico = m.id_medico;
+
+-- 6. Consultas registradas ordenadas pelas datas mais recentes
+SELECT 
+    p.nome_paciente AS Paciente,
+    m.nome_medico AS Medico,
+    c.data_consulta AS Data_Consulta
+FROM consultas c
+JOIN paciente p ON c.id_paciente = p.id_paciente
+JOIN medicos m ON c.id_medico = m.id_medico
+ORDER BY c.data_consulta DESC;
+
+-- 7. Valor da diária cobrada por paciente/quarto (do menor para o maior)
+SELECT 
+    p.nome_paciente AS Paciente,
+    q.numero_quarto AS Quarto,
+    i.valor_diaria AS Valor_Diaria
+FROM internacoes i
+JOIN paciente p ON i.id_paciente = p.id_paciente
+JOIN quarto q ON i.id_quarto = q.id_quarto
+ORDER BY i.valor_diaria ASC;
+
+-- 8. Valor médio praticado nas consultas médicas registradas
+SELECT 
+    ROUND(AVG(valor_consulta), 2) AS Valor_Medio_Consultas
+FROM consultas;
+
+-- 9. Valor total arrecadado exclusivamente com consultas médicas
+SELECT 
+    SUM(valor_consulta) AS Total_Arrecadado_Consultas
+FROM consultas;
+
+-- 10. Consultas realizadas por pacientes com sobrenome/família "Silva"
+SELECT 
+    p.nome_paciente AS Paciente,
+    m.nome_medico AS Medico,
+    c.data_consulta AS Data_Consulta
+FROM consultas c
+JOIN paciente p ON c.id_paciente = p.id_paciente
+JOIN medicos m ON c.id_medico = m.id_medico
+WHERE p.nome_paciente LIKE '%Silva%';
+
+-- 11. Consultas com médicos da área de Cardiologia (especialidade contendo "Cardio")
+SELECT 
+    p.nome_paciente AS Paciente,
+    m.nome_medico AS Medico,
+    m.especialidade AS Especialidade
+FROM consultas c
+JOIN paciente p ON c.id_paciente = p.id_paciente
+JOIN medicos m ON c.id_medico = m.id_medico
+WHERE m.especialidade LIKE '%Cardio%';
+
+-- 12. Internações iniciadas no 1º semestre de 2026 (entre 01/01/2026 e 30/06/2026)
+SELECT 
+    p.nome_paciente AS Paciente,
+    q.numero_quarto AS Quarto,
+    i.data_entrada AS Data_Entrada
+FROM internacoes i
+JOIN paciente p ON i.id_paciente = p.id_paciente
+JOIN quarto q ON i.id_quarto = q.id_quarto
+WHERE i.data_entrada BETWEEN '2026-01-01' AND '2026-06-30';
+
+-- 13. Receita total por paciente do convênio "Unimed" (do maior para o menor)
+SELECT 
+    p.nome_paciente AS Paciente,
+    p.convenio AS Convenio,
+    SUM(c.valor_consulta) AS Receita_Total
+FROM consultas c
+JOIN paciente p ON c.id_paciente = p.id_paciente
+WHERE p.convenio LIKE '%Unimed%'
+GROUP BY p.id_paciente, p.nome_paciente, p.convenio
+ORDER BY Receita_Total DESC;
+
+-- 14. Custo total de diárias agrupado por andar para pacientes "Oliveira"
+SELECT 
+    q.andar AS Andar,
+    SUM(i.valor_diaria) AS Custo_Total_Diarias
+FROM internacoes i
+JOIN paciente p ON i.id_paciente = p.id_paciente
+JOIN quarto q ON i.id_quarto = q.id_quarto
+WHERE p.nome_paciente LIKE '%Oliveira%'
+GROUP BY q.andar
+ORDER BY q.andar ASC;
+
+-- 15. Faturamento total de consultas por especialidades do setor cirúrgico
+SELECT 
+    m.especialidade AS Especialidade_Cirurgica,
+    SUM(c.valor_consulta) AS Total_Arrecadado
+FROM consultas c
+JOIN medicos m ON c.id_medico = m.id_medico
+WHERE m.especialidade LIKE '%Cirurgia%'
+GROUP BY m.especialidade
+ORDER BY Total_Arrecadado DESC;
